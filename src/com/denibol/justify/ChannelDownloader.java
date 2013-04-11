@@ -50,9 +50,7 @@ import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -86,9 +84,6 @@ public class ChannelDownloader implements ChannelListener{
 	private int      _streamLength;
 	private int      _receivedLength;
 	private boolean  _loading;
-	
-	/* Caching of substreams. */
-	private byte[]         _cacheData;
 	
 	/**
 	 * Creates a new ChannelPlayer for decrypting and playing audio from a
@@ -207,9 +202,6 @@ public class ChannelDownloader implements ChannelListener{
 	
 	/* Called when a channel header is received. */
 	public void channelHeader(Channel channel, byte[] header){
-		/* Create buffer for this substream. */
-		_cacheData = new byte[_streamLength];
-		
 		/* We didn't receive data yet. */
 		_receivedLength = 0;
 	}
@@ -219,12 +211,9 @@ public class ChannelDownloader implements ChannelListener{
 		/* Offsets needed for deinterleaving. */
 		int off, w, x, y, z;
 		
-		/* Copy data to cache buffer. */
-		for(int i = 0; i < data.length; i++) _cacheData[_receivedLength + i] = data[i];
-		
 		/* Allocate space for ciphertext. */
-		byte[] ciphertext = new byte[data.length + 1024];
-		byte[] keystream  = new byte[16];
+		byte[] ciphertext = new byte[data.length];
+		
 		
 		/* Decrypt each 1024 byte block. */
 		for(int block = 0; block < data.length / 1024; block++){
@@ -240,45 +229,12 @@ public class ChannelDownloader implements ChannelListener{
 				ciphertext[off++] = data[x++];
 				ciphertext[off++] = data[y++];
 				ciphertext[off++] = data[z++];
-			}
-			
-			/* Decrypt 1024 bytes block. This will fail for the last block. */
-			for(int i = 0; i < 1024 && (block * 1024 + i) < data.length; i += 16){
-				/* Produce 16 bytes of keystream from the IV. */
-				try{ 
-					keystream = _cipher.doFinal(_iv);
-				
-				}catch(IllegalBlockSizeException e){ e.printStackTrace();
-				}catch(BadPaddingException e){ e.printStackTrace(); }
-				
-				/* 
-				 * Produce plaintext by XORing ciphertext with keystream.
-				 * And somehow I also need to XOR with the IV... Please
-				 * somebody tell me what I'm doing wrong, or is it the
-				 * Java implementation of AES? At least it works like this.
-				 */
-				for(int j = 0; j < 16; j++){
-					ciphertext[block * 1024 + i + j] ^= keystream[j] ^ _iv[j];
-				}
-
-				/* Update IV counter. */
-				for(int j = 15; j >= 0; j--){
-					_iv[j] += 1;
-					
-					if((int)(_iv[j] & 0xFF) != 0) break;
-				}
-				
-				/* Set new IV. */
-				try{
-					_cipher.init(Cipher.ENCRYPT_MODE, _key, new IvParameterSpec(_iv));
-					
-				}catch(InvalidKeyException e){ e.printStackTrace();
-				}catch(InvalidAlgorithmParameterException e){ e.printStackTrace(); }
-			}
+			}	
 		}
 		
+		byte[] plaintext = _cipher.update(ciphertext);
 		/* Write data to output stream. */
-		try{ _output.write(ciphertext, 0, ciphertext.length - 1024);
+		try{ _output.write(plaintext, 0, plaintext.length);
 		}catch(IOException e){ /* Just don't care... */ }
 		
 		_receivedLength += data.length;

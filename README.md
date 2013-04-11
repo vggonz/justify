@@ -24,6 +24,20 @@ Además, no distribuyo binarios y delega todo lo posible en la librería Jotify,
 
 Para más información acerca del porqué, los autores de Despotify tienen un FAQ muy completo (en inglés): http://despotify.se/faq/
 
+Changelog / Lista de cambios
+----------------------------
+
+v0.1
+	- Versión inicial
+
+v0.2
+	- Adaptado el código para la última versión de Jotify con fecha del 23 de febrero del 2010 y protocolo de Spotify
+
+Errores conocidos
+-----------------
+
+- No puede almacenar correctamente la canción si su título, álbum o lista de reproducción contiene un separador de directorios, "/" en GNU/Linux o "\" en Windows
+
 Agradecimientos y créditos
 --------------------------
 

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.lang.reflect.Field;
 
 import de.felixbruns.jotify.JotifyConnection;
@@ -37,7 +38,6 @@ import de.felixbruns.jotify.media.Link;
 import de.felixbruns.jotify.media.Link.InvalidSpotifyURIException;
 import de.felixbruns.jotify.protocol.Protocol;
 import de.felixbruns.jotify.protocol.channel.ChannelCallback;
-import de.felixbruns.jotify.protocol.channel.ChannelHeaderCallback;
 
 public class Justify {
 
@@ -86,13 +86,14 @@ public class Justify {
 			}catch (InvalidSpotifyURIException urie){ throw new JustifyException("[ERROR] Dirección de Spotify no válida"); }
 				
 		}catch (JustifyException je){ System.err.println(je.getMessage()); je.printStackTrace();
+		}catch (TimeoutException te){ System.err.println(te.getMessage()); te.printStackTrace();
 		}finally{
 			try{ connection.close();
 			}catch (ConnectionException ce){ System.err.println("[ERROR] No se ha podido desconectar"); } 
 		}
 	}
-	
-	public static void downloadTrack(Track track, JotifyConnection connection, String parent) throws JustifyException{
+
+	public static void downloadTrack(Track track, JotifyConnection connection, String parent) throws JustifyException, TimeoutException{
 		System.out.println(track);
 		selectBitrate(track, HIGH_QUALITY);
 		try{
@@ -105,8 +106,8 @@ public class Justify {
 			}
 			file.createNewFile();
 			download(connection, track, file);
-		}catch(FileNotFoundException fnfe){ fnfe.printStackTrace(); throw new JustifyException("[ERROR] No se ha podido guardar el archivo");
-		}catch(IOException ioe){ ioe.printStackTrace(); throw new JustifyException("[ERROR] Ha ocurrido un fallo de entrada / salida"); }
+		}catch(FileNotFoundException fnfe){ fnfe.printStackTrace(); /* throw new JustifyException("[ERROR] No se ha podido guardar el archivo"); */
+		}catch(IOException ioe){ ioe.printStackTrace(); /* throw new JustifyException("[ERROR] Ha ocurrido un fallo de entrada / salida"); */ }
 
 	}
 
@@ -133,10 +134,9 @@ public class Justify {
 		}
 	}
 
-	public static void download(JotifyConnection connection, Track track, java.io.File file) throws FileNotFoundException{
+	public static void download(JotifyConnection connection, Track track, java.io.File file) throws FileNotFoundException, TimeoutException{
 		/* Create channel callbacks. */
 		ChannelCallback       callback       = new ChannelCallback();
-		ChannelHeaderCallback headerCallback = new ChannelHeaderCallback();
 		Protocol protocol = getProtocol(connection);
 		int timeout = 10;
 		FileOutputStream fos = new FileOutputStream(file);
@@ -148,25 +148,11 @@ public class Justify {
 		/* Get AES key. */
 		byte[] key = callback.get(timeout, TimeUnit.SECONDS);
 		
-		/* Send header request to check for HTTP stream. */
-		try{ protocol.sendSubstreamRequest(headerCallback, track, 0, 0);
-		}catch(ProtocolException e){ return; }
-		
-		/* Get list of HTTP stream URLs. */
-		List<String> urls = headerCallback.get(timeout, TimeUnit.SECONDS);
-		
-		/* If we got 4 HTTP stream URLs use them, otherwise use default channel streaming. */
-		if(urls.size() == 4){
-			System.out.println("-- HTTP Stream");
-			new HTTPStreamDownloader(urls, track, key, fos);
-		}else{
-			System.out.println("-- Channel Stream");
-			new ChannelDownloader(protocol, track, key, fos);
-		}
+		new ChannelDownloader(protocol, track, key, fos);
 	}
 
-	// Recupera el atributo Protocol de la conexión necesario para utilizar los ChannelPlayer HTTPStreamPlayer
-	// personalizados, mediante Reflection
+	// Recupera el atributo Protocol de la conexión necesario para utilizar el ChannelPlayer 
+	// personalizado, mediante Reflection
 	public static Protocol getProtocol(JotifyConnection connection){
 		try{
 			Class clase = connection.getClass();
