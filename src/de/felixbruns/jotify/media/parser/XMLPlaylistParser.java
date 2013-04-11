@@ -187,6 +187,12 @@ public class XMLPlaylistParser extends XMLParser implements XMLStreamConstants {
 			else if(name.equals("time")){
 				this.getElementString(); /* Skip. */
 			}
+			else if(name.equals("rid")){
+				this.getElementString(); /* Skip. */
+			}
+			else if(name.equals("version")){
+				this.getElementString(); /* Skip */
+			}
 			else if(name.equals("user")){
 				if(object instanceof Playlist){
 					((Playlist)object).setAuthor(this.getElementString());

@@ -655,20 +655,20 @@ public class JotifyConnection implements Jotify, CommandListener {
 		/* Data buffer. */
 		byte[] data;
 		
-			/* Create channel callback */
-			ChannelCallback callback = new ChannelCallback();
+		/* Create channel callback */
+		ChannelCallback callback = new ChannelCallback();
 			
-			/* Send playlist request. */
-			try{
-				this.protocol.sendPlaylistRequest(callback, id);
-			}
-			catch(ProtocolException e){
-				return null;
-			}
+		/* Send playlist request. */
+		try{
+			this.protocol.sendPlaylistRequest(callback, id);
+		}
+		catch(ProtocolException e){
+			return null;
+		}
 			
-			/* Get data. */
-			data = callback.get(this.timeout, this.unit);
-			
+		/* Get data. */
+		data = callback.get(this.timeout, this.unit);
+		
 		/* Create and return playlist. */
 		return XMLPlaylistParser.parsePlaylist(data, "UTF-8", id);
 	}

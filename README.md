@@ -34,6 +34,9 @@ v0.3
 	- Integración de la librería Jotify en el código (actualmente abandonado)
 	- Adaptado a la última versión del protocolo de Spotify
 
+v0.4
+	- Corregido un fallo al descargar listas de reproducción
+
 Agradecimientos y créditos
 --------------------------
 
