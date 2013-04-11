@@ -42,17 +42,7 @@ import de.felixbruns.jotify.media.User;
 import de.felixbruns.jotify.media.Link.InvalidSpotifyURIException;
 import de.felixbruns.jotify.player.SpotifyInputStream;
 
-import org.jaudiotagger.audio.AudioFile;
-import org.jaudiotagger.audio.AudioFileIO;
-import org.jaudiotagger.audio.exceptions.CannotReadException;
-import org.jaudiotagger.audio.exceptions.CannotWriteException;
-import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
-import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
-import org.jaudiotagger.tag.FieldDataInvalidException;
-import org.jaudiotagger.tag.FieldKey;
-import org.jaudiotagger.tag.KeyNotFoundException;
-import org.jaudiotagger.tag.Tag;
-import org.jaudiotagger.tag.TagException;
+import adamb.vorbis.*;
 
 
 public class Justify extends JotifyConnection{
@@ -64,8 +54,6 @@ public class Justify extends JotifyConnection{
 	private static long TIMEOUT = 10; // en segundos
 	private static Integer discindex = 1;
 	private static Integer oldtracknumber = 1;
-	private AudioFile archivoAudio;
-	private Tag tag;
 	
 	public static void main(String args[]){
 		
@@ -74,7 +62,7 @@ public class Justify extends JotifyConnection{
 			System.err.println("Comandos:");
 			System.err.println("    download: descargar pista/lista/album");
 			System.err.println("    download numero: descarga album comenzando por el numero de pista indicado");
-			System.err.println("    cover: descargar caratula del album");
+			System.err.println("    cover: descargar car‡tula del ‡lbum");
 			return;
 		}
 		
@@ -123,7 +111,7 @@ public class Justify extends JotifyConnection{
 							
 							try {
 								Image coverimage = justify.image(album.getCover());
-								java.io.File coverfile = new java.io.File(sanearNombre(directorio), "cover.jpg");
+								java.io.File coverfile = new java.io.File(sanearNombre(directorio), "folder.jpg");
 								ImageIO.write((BufferedImage) coverimage, "jpg", coverfile);
 								System.out.println("Descargada portada del album: " + album);
 							} catch (IOException e) { e.printStackTrace(); }		
@@ -137,7 +125,7 @@ public class Justify extends JotifyConnection{
 						
 						try {
 							Image coverimage = justify.image(album.getCover());
-							java.io.File coverfile = new java.io.File(sanearNombre(directorio), "cover.jpg");
+							java.io.File coverfile = new java.io.File(sanearNombre(directorio), "folder.jpg");
 							ImageIO.write((BufferedImage) coverimage, "jpg", coverfile);
 							System.out.println("Descargada portada del album");
 						} catch (IOException e) { e.printStackTrace(); }			
@@ -173,27 +161,17 @@ public class Justify extends JotifyConnection{
 				download(track, file, File.BITRATE_320); // bitrate maximo disponible
 
 			try {
-				archivoAudio = AudioFileIO.read(file);
-				tag = archivoAudio.getTag();
-				tag.setField(FieldKey.ARTIST, track.getArtist().getName());
-				tag.setField(FieldKey.ALBUM_ARTIST, track.getAlbum().getArtist().getName());
-				tag.setField(FieldKey.ALBUM, track.getAlbum().getName());
-				tag.setField(FieldKey.TITLE, track.getTitle());
-				tag.setField(FieldKey.YEAR, String.valueOf(track.getAlbum().getYear()));
-				tag.setField(FieldKey.TRACK, String.valueOf(track.getTrackNumber()));
-				// tag.setField(FieldKey.TRACK_TOTAL, String.valueOf(track.getAlbum().getTracks().size()));
-				tag.setField(FieldKey.DISC_NO, discindex.toString());
-				tag.setField(FieldKey.DISC_TOTAL, String.valueOf(track.getAlbum().getDiscs().size()));
-				archivoAudio.commit();
-			} catch (KeyNotFoundException e) { e.printStackTrace();
-			} catch (FieldDataInvalidException e) { e.printStackTrace();
-			} catch (CannotWriteException e) { e.printStackTrace();
-			} catch (CannotReadException e) { e.printStackTrace();
-			} catch (TagException e) { e.printStackTrace();
-			} catch (ReadOnlyFileException e) { e.printStackTrace();
-			} catch (InvalidAudioFrameException e) { e.printStackTrace();
-			}
-
+				VorbisCommentHeader comments = new VorbisCommentHeader();
+				comments.fields.add(new CommentField("ARTIST", track.getArtist().getName()));
+				comments.fields.add(new CommentField("ALBUM ARTIST", track.getAlbum().getArtist().getName()));
+				comments.fields.add(new CommentField("ALBUM", track.getAlbum().getName()));
+				comments.fields.add(new CommentField("TITLE", track.getTitle()));
+				comments.fields.add(new CommentField("DATE", String.valueOf(track.getAlbum().getYear())));
+				comments.fields.add(new CommentField("TRACKNUMBER", String.valueOf(track.getTrackNumber())));
+				comments.fields.add(new CommentField("DISCNUMBER", discindex.toString()));
+				comments.fields.add(new CommentField("TOTALDISCS", String.valueOf(track.getAlbum().getDiscs().size())));
+				VorbisIO.writeComments(file, comments);
+			} catch (IOException e) { e.printStackTrace(); }
 		}catch(FileNotFoundException fnfe){ fnfe.printStackTrace(); /* throw new JustifyException("[ERROR] No se ha podido guardar el archivo"); */
 		}catch(IOException ioe){ ioe.printStackTrace(); /* throw new JustifyException("[ERROR] Ha ocurrido un fallo de entrada / salida"); */ }
 		
@@ -216,14 +194,16 @@ public class Justify extends JotifyConnection{
 
 	public static boolean isWindows(){
 		String os = System.getProperty("os.name").toLowerCase();
-		return (os.indexOf("win") >= 0); 
+		return (os.indexOf( "win" ) >= 0); 
 	}
 
 	public static String sanearNombre(String nombre){
-		if(nombre == null) return null;
+		if(nombre==null) return null;
 
-		if(isWindows()) nombre = nombre.replaceAll("\\\\", "/");
-		else nombre = nombre.replaceAll("/", "\\\\");
+		if(isWindows())
+			nombre = nombre.replaceAll("\\\\", "/");
+		else
+			nombre = nombre.replaceAll("/", "\\\\");
 
 		nombre = nombre.replaceAll("[\\\\/:*?\"<>|]", "_");
 

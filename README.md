@@ -38,16 +38,21 @@ v0.3
 v0.4
 	- Corregido un fallo al descargar listas de reproducción
 
-v0.5
+v0.5 (por Klaxnek)
 	- Adaptado a la última versión del protocolo de Spotify
 	- Añadida la opción para descargar carátulas
 	- Integración con la librería JAudioTagger para añadir los metadatos asociados a las canciones
+
+v0.6 (por Klaxnek)
+	- Cambio de la librería JAudioTagger a JVorbisComment
+	- Adaptado a la última versión del protocolo de Spotify
+	- Cambio en el nombre de las carátulas por "folder.jpg"
 
 Agradecimientos y créditos
 --------------------------
 
 Todo el mérito va para los autores de Despotify (http://despotify.se/), que consiguieron realizar ingeniería inversa del protocolo y realizar una implementación libre. Realmente es fascinante lo que han conseguido y estudiando su código no tengo más que rendirme ante su habilidad. También gran parte del mérito va para Felix Bruns, que ha portado la librería a la plataforma Java y sobre la que descansa Justify.
 
-También tengo que agradecer especialmente a Klaxnek por mantener el código y añadir nuevas funcionalides en su última versión.
+También tengo que agradecer especialmente a Klaxnek por mantener el código y añadir nuevas funcionalides en sus últimas versiones.
 
 Si te gusta Spotify, paga por él. Yo lo hago.
