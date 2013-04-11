@@ -17,149 +17,150 @@
 
 package com.denibol.justify;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
-import java.util.Collections;
-import java.util.concurrent.TimeUnit;
+import java.lang.reflect.Method;
 import java.util.concurrent.TimeoutException;
-import java.lang.reflect.Field;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import de.felixbruns.jotify.JotifyConnection;
 import de.felixbruns.jotify.exceptions.AuthenticationException;
 import de.felixbruns.jotify.exceptions.ConnectionException;
-import de.felixbruns.jotify.exceptions.ProtocolException;
 import de.felixbruns.jotify.media.Album;
+import de.felixbruns.jotify.media.File;
+import de.felixbruns.jotify.media.Link;
 import de.felixbruns.jotify.media.Playlist;
 import de.felixbruns.jotify.media.Track;
-import de.felixbruns.jotify.media.Link;
+import de.felixbruns.jotify.media.User;
 import de.felixbruns.jotify.media.Link.InvalidSpotifyURIException;
-import de.felixbruns.jotify.protocol.Protocol;
-import de.felixbruns.jotify.protocol.channel.ChannelCallback;
+import de.felixbruns.jotify.player.SpotifyInputStream;
 
-public class Justify {
+public class Justify extends JotifyConnection{
+	
+	private static Pattern REGEX = Pattern.compile(":(.*?):");
+	private static String TRACK_FORMAT = ":artist.name: - :title:.ogg";
+	private static String ALBUM_FORMAT = ":artist.name: - :name:";
+	private static String PLAYLIST_FORMAT = ":author: - :name:";
+	private static long TIMEOUT = 10; // en segundos
 
 	public static void main(String args[]){
+		
 		if (args.length != 3){
-			System.err.println("[ERROR] Se esperan 3 parámetros: nombre de usuario, contraseña y dirección Spotify para descargar");
+			System.err.println("[ERROR] Se esperan 3 parametros: nombre de usuario, password y direccion Spotify para descargar");
 			return;
 		}
 		
-		JotifyConnection connection = new JotifyConnection();
+		Justify justify = new Justify();
 		try{
-			try{
-				connection.login(args[0], args[1]);
+			try{ justify.login(args[0], args[1]);
 			}catch(ConnectionException ce){ throw new JustifyException("[ERROR] No se ha podido conectar con el servidor");
-			}catch(AuthenticationException ae){ throw new JustifyException("[ERROR] Usuario o contraseña no válidos"); }
-			new Thread(connection, "JotifyConnection-Thread").start();
+			}catch(AuthenticationException ae){ throw new JustifyException("[ERROR] Usuario o password no validos"); }
 
-			System.out.println(connection.user());
-			if (!connection.user().isPremium()) throw new JustifyException("[ERROR] Debes ser usuario 'premium'");
+			User usuario = justify.user();
+			System.out.println(usuario);
+			if (!usuario.isPremium()) throw new JustifyException("[ERROR] Debes ser usuario 'premium'");
 			try{
 				Link uri = Link.create(args[2]);
+				
 				if (uri.isTrackLink()){
 					
-					Track track = connection.browseTrack(uri.getId());
+					Track track = justify.browseTrack(uri.getId());
 					if (track == null) throw new JustifyException("[ERROR] Pista no encontrada");
-					downloadTrack(track, connection, null);
+					justify.downloadTrack(track, null);
 					
 				}else if (uri.isPlaylistLink()){
 					
-					Playlist playlist = connection.playlist(uri.getId());
-					if (playlist == null) throw new JustifyException("[ERROR] Lista de reproducción no encontrada");
+					Playlist playlist = justify.playlist(uri.getId());
+					if (playlist == null) throw new JustifyException("[ERROR] Lista de reproduccion no encontrada");
 					System.out.println(playlist);
-					System.out.println("Número de pistas: " + playlist.getTracks().size());
-					for(Track track : playlist.getTracks()) downloadTrack(connection.browse(track), connection, playlist.getAuthor() + " - " + playlist.getName());
+					System.out.println("Numero de pistas: " + playlist.getTracks().size());
+					String directorio = replaceByReference(playlist, PLAYLIST_FORMAT);
+					for(Track track : playlist.getTracks()) justify.downloadTrack(justify.browse(track), directorio);
 					
 				}else if(uri.isAlbumLink()){
 					
-					Album album = connection.browseAlbum(uri.getId());
-					if (album == null) throw new JustifyException("[ERROR] Álbum no encontrado");
+					Album album = justify.browseAlbum(uri.getId());
+					if (album == null) throw new JustifyException("[ERROR] Album no encontrado");
 					System.out.println(album);
 					System.out.println("Contiene " + album.getTracks().size() + " pistas repartidas en " + album.getDiscs().size() + " disco(s)");
-					for(Track track : album.getTracks()) downloadTrack(track, connection, album.getArtist().getName() + " - " + album.getName());
+					String directorio = replaceByReference(album, ALBUM_FORMAT);
+					for(Track track : album.getTracks()) justify.downloadTrack(track, directorio);
 					
-				}else throw new JustifyException("[ERROR] Se esperaba una pista, álbum o lista de reproducción");
+				}else throw new JustifyException("[ERROR] Se esperaba una pista, album o lista de reproduccion");
 				
-			}catch (InvalidSpotifyURIException urie){ throw new JustifyException("[ERROR] Dirección de Spotify no válida"); }
+			}catch (InvalidSpotifyURIException urie){ throw new JustifyException("[ERROR] Direccion de Spotify no valida"); }
 				
 		}catch (JustifyException je){ System.err.println(je.getMessage()); je.printStackTrace();
 		}catch (TimeoutException te){ System.err.println(te.getMessage()); te.printStackTrace();
 		}finally{
-			try{ connection.close();
+			try{ justify.close();
 			}catch (ConnectionException ce){ System.err.println("[ERROR] No se ha podido desconectar"); } 
 		}
 	}
 
-	public static void downloadTrack(Track track, JotifyConnection connection, String parent) throws JustifyException, TimeoutException{
+	public Justify(){ super(TIMEOUT, TimeUnit.SECONDS); }
+
+	private void downloadTrack(Track track, String parent) throws JustifyException, TimeoutException{
 		System.out.println(track);
-		selectBitrate(track, HIGH_QUALITY);
 		try{
-			String nombre = track.getArtist().getName() + " - " + track.getTitle() + ".ogg";
-			File file = new File(parent, nombre);
+			String nombre = replaceByReference(track, TRACK_FORMAT);
+			java.io.File file = new java.io.File(sanearNombre(parent), sanearNombre(nombre));
 			System.out.println("Descargando al fichero " + file.getPath());
-			if (parent != null){
-				File dir = new File(parent);
-				dir.mkdir();
-			}
-			file.createNewFile();
-			download(connection, track, file);
+			if(parent != null && !file.getParentFile().exists()) file.getParentFile().mkdirs();
+			download(track, file, File.BITRATE_320); // bitrate maximo disponible
 		}catch(FileNotFoundException fnfe){ fnfe.printStackTrace(); /* throw new JustifyException("[ERROR] No se ha podido guardar el archivo"); */
 		}catch(IOException ioe){ ioe.printStackTrace(); /* throw new JustifyException("[ERROR] Ha ocurrido un fallo de entrada / salida"); */ }
 
 	}
+	
+	private void download(Track track, java.io.File file, int bitrate) throws TimeoutException, IOException{
 
-	private static final int HIGH_QUALITY = 320000; // 320 kbps
-	private static final int MEDIUM_QUALITY = 160000; // 160 kbps
-	private static final int LOW_QUALILTY = 96000; // 96 kbps
-
-	// Se ordenan los ficheros asociados a la pista para que esté primero el de la calidad requerida
-	// porque Protocol.sendAesKeyRequest solo pide el primero
-	private static void selectBitrate(Track track, int bitrate){
-		de.felixbruns.jotify.media.File selected = null;
-		int diff = Integer.MAX_VALUE;
-		for(de.felixbruns.jotify.media.File f : track.getFiles()){
-			int new_diff = Math.abs(f.getBitrate() - bitrate);
-			if (new_diff < diff){
-				diff = new_diff;
-				selected = f;
-			}
-		}
-
-		if (selected != null){
-			track.getFiles().remove(selected);
-			track.getFiles().add(0, selected);
-		}
-	}
-
-	public static void download(JotifyConnection connection, Track track, java.io.File file) throws FileNotFoundException, TimeoutException{
-		/* Create channel callbacks. */
-		ChannelCallback       callback       = new ChannelCallback();
-		Protocol protocol = getProtocol(connection);
-		int timeout = 10;
 		FileOutputStream fos = new FileOutputStream(file);
-		
-		/* Send play request (token notify + AES key). */
-		try{ protocol.sendPlayRequest(callback, track);
-		}catch(ProtocolException e){ return; }
-		
-		/* Get AES key. */
-		byte[] key = callback.get(timeout, TimeUnit.SECONDS);
-		
-		new ChannelDownloader(protocol, track, key, fos);
+		SpotifyInputStream sis = new SpotifyInputStream(protocol, track, bitrate);
+
+		byte[] buf = new byte[8192];
+		sis.read(buf, 0, 167); // Skip Spotify OGG Header, no se puede usar skip() porque aun no hay datos leidos por ningun read()
+		while (true) {
+			int length = sis.read(buf);
+			if (length < 0) break;
+			fos.write(buf, 0, length);
+		}
 	}
 
-	// Recupera el atributo Protocol de la conexión necesario para utilizar el ChannelPlayer 
-	// personalizado, mediante Reflection
-	public static Protocol getProtocol(JotifyConnection connection){
-		try{
-			Class clase = connection.getClass();
-			Field campo = clase.getDeclaredField("protocol");
-			campo.setAccessible(true);
-			return (Protocol)campo.get(connection);
-		}catch(Exception e){ return null; }
+	public static boolean isWindows(){
+		String os = System.getProperty("os.name").toLowerCase();
+		return (os.indexOf( "win" ) >= 0); 
 	}
+
+	public static String sanearNombre(String nombre){ return (nombre == null ? null : (isWindows() ? nombre.replaceAll("\\\\", "/") : nombre.replaceAll("/", "\\\\"))); }
+
+	public static String capitalize(String s) { return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase(); }
+
+	public static String replaceByReference(Object inicial, String formato) throws JustifyException{
+		StringBuffer resultString = new StringBuffer();
+		try {
+
+			Matcher regexMatcher = REGEX.matcher(formato);
+			while (regexMatcher.find()) {
+				String referencias = regexMatcher.group();
+				referencias = referencias.substring(1, referencias.length() - 1);
+				String[] metodos = referencias.split("\\.");
+				Object objeto = inicial;
+				for (String metodo : metodos){
+
+					Class<?> clase = objeto.getClass();
+					Method method = clase.getMethod("get" + capitalize(metodo), new Class<?>[0]);
+					objeto = method.invoke(objeto, new Object[0]);
+				}
+
+				regexMatcher.appendReplacement(resultString, (String)objeto);
+			}
+			regexMatcher.appendTail(resultString);
+		} catch (Exception e){ throw new JustifyException(e); }
+		return resultString.toString();
+    }
 	
 }

@@ -4,23 +4,20 @@ Justify
 Instalación
 -----------
 
-Justify necesita la librería Jotify descargable desde http://jotify.felixbruns.de/
-Se ha probado con la última versión disponible a fecha del 28 de enero del 2010 y descargable directamente desde http://github.com/fxb/jotify/zipball/ac2044119edab3f41fbbf8680341dd37572283e7
-No es necesario satisfacer todas las dependencias y se pueden borrar tranquilamente los directorios "gui" y "gateway" de la librería que no son necesarios para el funcionamiento de Justify.
+El único requisito necesario es disponer de una máquina virtual de Java 1.6 o superior y un acceso a Internet para su funcionamiento. Se garantiza que a fecha 26 de agosto de 2010 la aplicación es compatible con el último protocolo de Spotify.
 
 Uso
 ---
 
 Justify require que poseas una cuenta Premium de Spotify. Es una restricción de la propia Spotify y de todas las librerías, tanto oficiales como open-source.
 Recibe 3 parámetros: usuario, contraseña y dirección de Spotify
-La dirección puede ser de una pista concreta, un álbum o una lista de reproducción. En el caso de una pista descargará la canción con el formato "<artista> - <titulo>.ogg", en el caso de un álbum descargará todas las canciones en un directorio llamado "<artista> - <titulo>", y en el caso de una lista de reproducción descargará todas las canciones en un directorio llamado "<creador> - <titulo>". Por defecto todas las canciones serán descargadas con la máxima calidad disponible que actualmente son 320kbps. Ninguna pista contendrá metadatos asociados tipo ID3 y todas estarán en formato OGG.
+La dirección puede ser de una pista concreta, un álbum o una lista de reproducción, accesibles desde el propio Spotify a través del menú contextual (botón derecho del ratón) y seleccionando "Copiar URI de Spotify". En el caso de una pista descargará la canción con el formato "<artista> - <titulo>.ogg", en el caso de un álbum descargará todas las canciones en un directorio llamado "<artista> - <titulo>", y en el caso de una lista de reproducción descargará todas las canciones en un directorio llamado "<creador> - <titulo>". Por defecto todas las canciones serán descargadas con la máxima calidad disponible que actualmente son 320kbps. Ninguna pista contendrá metadatos asociados y todas estarán en formato OGG.
+El formato de los nombres de pistas y directorios no se puede modificar a menos que se modifique el código y unas constantes para tal efecto. En futuras versiones podrá ser configurable.
 
 ¿Por qué?
 ---------
 
 Desde que se realizó ingeniería inversa del protocolo de Spotify, era cuestión de tiempo que alguien creara un programa que directamente descargase canciones. Los propios creadores de la librería Despotify, desaconsejan la creación de estos programas que pueden dañar a la empresa. Sin embargo yo no estoy de acuerdo. Se sigue necesitando una cuenta Premium para ello y eso siempre acaba benefiando. Los más perjudicados son legalmente las compañías discográficas que ven como el DRM de Spotify no sirve de nada, y 7digital, que no realizará las ventas esperadas. En mi opinión, pagar 10 euros al mes para acceder al servicio y al completo catálogo de Spotify es cantidad más que suficiente y "justificada" para poder escuchar la música que ofrecen donde yo quiera y como quiera, no donde ellos autoricen ni donde su programa funcione.
-
-Además, no distribuyo binarios y delega todo lo posible en la librería Jotify, siguiendo con la doble moral de los autores de Despotify, que publican su código fuente pero no la documentación sobre cómo funciona el protocol de Spotify.
 
 Para más información acerca del porqué, los autores de Despotify tienen un FAQ muy completo (en inglés): http://despotify.se/faq/
 
@@ -33,10 +30,9 @@ v0.1
 v0.2
 	- Adaptado el código para la última versión de Jotify con fecha del 23 de febrero del 2010 y protocolo de Spotify
 
-Errores conocidos
------------------
-
-- No puede almacenar correctamente la canción si su título, álbum o lista de reproducción contiene un separador de directorios, "/" en GNU/Linux o "\" en Windows
+v0.3
+	- Integración de la librería Jotify en el código (actualmente abandonado)
+	- Adaptado a la última versión del protocolo de Spotify
 
 Agradecimientos y créditos
 --------------------------
